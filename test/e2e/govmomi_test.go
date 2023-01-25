@@ -19,6 +19,7 @@ package e2e
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/url"
 	"os"
 	"time"
@@ -52,7 +53,7 @@ func init() {
 }
 
 func initVSphereSession() {
-	By("parsing vSphere server URL")
+	By(fmt.Sprintf("parsing vSphere server URL %s", vsphereServer))
 	serverURL, err := soap.ParseURL(vsphereServer)
 	Expect(err).ShouldNot(HaveOccurred())
 

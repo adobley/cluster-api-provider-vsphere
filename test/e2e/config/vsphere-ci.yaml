@@ -128,7 +128,7 @@ providers:
           - sourcePath: "../../../metadata.yaml"
 
 variables:
-  KUBERNETES_VERSION: "v1.23.5"
+  KUBERNETES_VERSION: "v1.23.15"
   CNI: "./data/cni/calico/calico.yaml"
   EXP_CLUSTER_RESOURCE_SET: "true"
   EXP_KUBEADM_BOOTSTRAP_FORMAT_IGNITION: "true"
@@ -142,7 +142,7 @@ variables:
   VSPHERE_DATASTORE: "WorkloadDatastore"
   VSPHERE_STORAGE_POLICY: "Cluster API vSphere Storage Policy"
   VSPHERE_NETWORK: "sddc-cgw-network-6"
-  VSPHERE_TEMPLATE: "ubuntu-2004-kube-v1.23.5"
+  VSPHERE_TEMPLATE: "ubuntu-2004-kube-v1.23.15"
   FLATCAR_VSPHERE_TEMPLATE: "flatcar-stable-3139.2.3-kube-v1.23.5"
   VSPHERE_INSECURE_CSI: "true"
   KUBETEST_CONFIGURATION: "./data/kubetest/conformance.yaml"

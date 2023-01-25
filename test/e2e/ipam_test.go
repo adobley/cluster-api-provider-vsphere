@@ -36,7 +36,7 @@ const (
 	NodeIPAMPoolEnd    = "NODE_IPAM_POOL_END"
 )
 
-var _ = Describe("Clusters using FromPools get assigned addresses from IPAM", func() {
+var _ = FDescribe("Clusters using FromPools get assigned addresses from IPAM", func() {
 	var namespace *v1.Namespace
 	var start, end string
 

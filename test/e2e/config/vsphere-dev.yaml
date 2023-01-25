@@ -147,7 +147,7 @@ providers:
           - sourcePath: "../../../metadata.yaml"
 
 variables:
-  KUBERNETES_VERSION: "v1.23.5"
+  KUBERNETES_VERSION: "v1.23.15"
   CNI: "./data/cni/calico/calico.yaml"
   #CNI: "./data/cni/kindnet/kindnet.yaml"
   EXP_CLUSTER_RESOURCE_SET: "true"
@@ -164,7 +164,7 @@ variables:
   VSPHERE_FOLDER: "FolderName"
   VSPHERE_NETWORK: "network-1"
   VSPHERE_RESOURCE_POOL: "ResourcePool"
-  VSPHERE_TEMPLATE: "ubuntu-2004-kube-v1.23.5"
+  VSPHERE_TEMPLATE: "ubuntu-2004-kube-v1.23.15"
   FLATCAR_VSPHERE_TEMPLATE: "flatcar-stable-3139.2.3-kube-v1.23.5"
   VSPHERE_TLS_THUMBPRINT: "AA:BB:CC:DD:11:22:33:44:EE:FF"
   # WORKLOAD_CONTROL_PLANE_ENDPOINT_IP:
@@ -185,11 +185,11 @@ variables:
   EXP_NODE_ANTI_AFFINITY: "true"
   EXP_NODE_LABELING: "true"
   # Node IPAM settings
-  NODE_IPAM_POOL_SUBNET: 192.168.116.1/24
-  NODE_IPAM_POOL_GATEWAY: 192.168.116.1
-  NODE_IPAM_POOL_START: 192.168.116.151
-  NODE_IPAM_POOL_END: 192.168.116.200
-  NODE_IPAM_NAMESERVER: 10.142.7.1
+  NODE_IPAM_POOL_SUBNET: 192.168.117.1/24
+  NODE_IPAM_POOL_GATEWAY: 192.168.117.1
+  NODE_IPAM_POOL_START: 192.168.117.161
+  NODE_IPAM_POOL_END: 192.168.117.200
+  NODE_IPAM_NAMESERVER: 192.168.117.1
 
 intervals:
   default/wait-controllers: ["5m", "10s"]
