@@ -438,10 +438,11 @@ func Test_BuildState(t *testing.T) {
 		g.Expect(state).To(gomega.HaveLen(0))
 	})
 
-	t.Run("when one device has no pool and is DHCP true, and one device has a IPAddressPool", func(_ *testing.T) {
+	t.Run("when one device has no pool and is DHCP true, one device has a IPAddressPool, and one has both", func(_ *testing.T) {
 		before()
 		devMAC0 := "0:0:0:0:a"
 		devMAC1 := "0:0:0:0:b"
+		devMAC2 := "0:0:0:0:c"
 
 		claim := &ipamv1a1.IPAddressClaim{
 			ObjectMeta: metav1.ObjectMeta{
@@ -456,6 +457,24 @@ func Test_BuildState(t *testing.T) {
 			},
 			Spec: ipamv1a1.IPAddressSpec{
 				Address: "10.0.0.50",
+				Prefix:  24,
+				Gateway: "10.0.0.1",
+			},
+		}
+
+		claim2 := &ipamv1a1.IPAddressClaim{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vsphereVM1-2-0",
+				Namespace: "my-namespace",
+			},
+		}
+		address2 := &ipamv1a1.IPAddress{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "vsphereVM1-2-0-address",
+				Namespace: "my-namespace",
+			},
+			Spec: ipamv1a1.IPAddressSpec{
+				Address: "10.0.0.51",
 				Prefix:  24,
 				Gateway: "10.0.0.1",
 			},
@@ -483,6 +502,17 @@ func Test_BuildState(t *testing.T) {
 								},
 								Nameservers: []string{"1.1.1.1"},
 							},
+							{
+								DHCP4: true,
+								AddressesFromPools: []corev1.TypedLocalObjectReference{
+									{
+										APIGroup: &myAPIGroup,
+										Name:     "my-pool-1",
+										Kind:     "my-pool-kind",
+									},
+								},
+								Nameservers: []string{"1.1.1.1"},
+							},
 						},
 					},
 				},
@@ -492,10 +522,12 @@ func Test_BuildState(t *testing.T) {
 		networkStatus = []infrav1.NetworkStatus{
 			{Connected: true},
 			{Connected: true},
+			{Connected: true},
 		}
 
 		// Creates ip address claims
 		g.Expect(vmCtx.Client.Create(ctx, claim)).NotTo(gomega.HaveOccurred())
+		g.Expect(vmCtx.Client.Create(ctx, claim2)).NotTo(gomega.HaveOccurred())
 
 		// VSphere has not yet assigned MAC addresses to the machine's devices
 		_, err := BuildState(ctx, vmCtx, networkStatus)
@@ -504,14 +536,16 @@ func Test_BuildState(t *testing.T) {
 		networkStatus = []infrav1.NetworkStatus{
 			{Connected: true, MACAddr: devMAC0},
 			{Connected: true, MACAddr: devMAC1},
+			{Connected: true, MACAddr: devMAC2},
 		}
 
 		// IP provider has not provided Addresses yet
 		_, err = BuildState(ctx, vmCtx, networkStatus)
 		g.Expect(err).To(gomega.MatchError("waiting for IP address claims to be bound"))
 
-		// Simulate IP provider reconciling one claim
+		// Simulate IP provider reconciling claims
 		g.Expect(vmCtx.Client.Create(ctx, address)).NotTo(gomega.HaveOccurred())
+		g.Expect(vmCtx.Client.Create(ctx, address2)).NotTo(gomega.HaveOccurred())
 
 		ipAddrClaim := &ipamv1a1.IPAddressClaim{}
 		ipAddrClaimKey := apitypes.NamespacedName{
@@ -523,12 +557,22 @@ func Test_BuildState(t *testing.T) {
 		ipAddrClaim.Status.AddressRef.Name = "vsphereVM1-1-0-address"
 		g.Expect(vmCtx.Client.Update(ctx, ipAddrClaim)).NotTo(gomega.HaveOccurred())
 
+		ipAddrClaim = &ipamv1a1.IPAddressClaim{}
+		ipAddrClaimKey = apitypes.NamespacedName{
+			Namespace: vmCtx.VSphereVM.Namespace,
+			Name:      "vsphereVM1-2-0",
+		}
+		g.Expect(vmCtx.Client.Get(ctx, ipAddrClaimKey, ipAddrClaim)).NotTo(gomega.HaveOccurred())
+
+		ipAddrClaim.Status.AddressRef.Name = "vsphereVM1-2-0-address"
+		g.Expect(vmCtx.Client.Update(ctx, ipAddrClaim)).NotTo(gomega.HaveOccurred())
+
 		// Now that claims are fulfilled, reconciling should update
 		// ipAddrs on network spec
 		ipamState, err := BuildState(ctx, vmCtx, networkStatus)
 		g.Expect(err).NotTo(gomega.HaveOccurred())
 
-		g.Expect(ipamState).To(gomega.HaveLen(1))
+		g.Expect(ipamState).To(gomega.HaveLen(2))
 
 		_, found := ipamState[devMAC0]
 		g.Expect(found).To(gomega.BeFalse())
@@ -536,6 +580,9 @@ func Test_BuildState(t *testing.T) {
 		g.Expect(ipamState[devMAC1].IPAddrs).To(gomega.HaveLen(1))
 		g.Expect(ipamState[devMAC1].IPAddrs[0]).To(gomega.Equal("10.0.0.50/24"))
 		g.Expect(ipamState[devMAC1].Gateway4).To(gomega.Equal("10.0.0.1"))
+		g.Expect(ipamState[devMAC2].IPAddrs).To(gomega.HaveLen(1))
+		g.Expect(ipamState[devMAC2].IPAddrs[0]).To(gomega.Equal("10.0.0.51/24"))
+		g.Expect(ipamState[devMAC2].Gateway4).To(gomega.Equal("10.0.0.1"))
 
 		// Compute the new metadata from the context to see if the addresses are rendered correctly
 		metadataBytes, err := util.GetMachineMetadata(vmCtx.VSphereVM.Name, *vmCtx.VSphereVM, ipamState, networkStatus...)
@@ -551,6 +598,11 @@ func Test_BuildState(t *testing.T) {
 		g.Expect(metadata.Network.Ethernets["id1"].DHCP4).To(gomega.BeFalse())
 		g.Expect(metadata.Network.Ethernets["id1"].Gateway4).To(gomega.Equal("10.0.0.1"))
 		g.Expect(metadata.Network.Ethernets["id1"].Nameservers.Addresses).To(gomega.ConsistOf("1.1.1.1"))
+
+		g.Expect(metadata.Network.Ethernets["id2"].Addresses).To(gomega.ConsistOf("10.0.0.51/24"))
+		g.Expect(metadata.Network.Ethernets["id2"].DHCP4).To(gomega.BeTrue())
+		g.Expect(metadata.Network.Ethernets["id2"].Gateway4).To(gomega.Equal("10.0.0.1"))
+		g.Expect(metadata.Network.Ethernets["id2"].Nameservers.Addresses).To(gomega.ConsistOf("1.1.1.1"))
 	})
 
 	t.Run("when realized IP addresses are incorrect", func(t *testing.T) {
